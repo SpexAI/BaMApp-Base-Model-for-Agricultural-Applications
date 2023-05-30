@@ -27,8 +27,18 @@ The [DinoV2](https://github.com/facebookresearch/dinov2) model, developed by Fac
 [DeepLake](https://github.com/activeloopai/deeplake) is an open-source project by ActiveLoop that provides a data lake for machine learning datasets. It allows users to store, share, and collaborate on large-scale datasets in an efficient and straightforward manner.
 
 ## Usage and Upload
+Login to DeepLake see [here](https://docs.activeloop.ai/getting-started/deep-learning/using-activeloop-storage) for instructions.
+```
+usage: upload.py [-h] [--folder FOLDER] [--commit_message COMMIT_MESSAGE]
 
-This section will contain instructions on how to use and upload data to the BaMApp Base Model for Agricultural Applications repository. Please see `upload.py` for an example of how to upload data.
+Upload images to deeplake
+
+options:
+  -h, --help            show this help message and exit
+  --folder FOLDER       Folder with images
+  --commit_message COMMIT_MESSAGE
+                        Commit message
+``
 
 ## Datasets
 
