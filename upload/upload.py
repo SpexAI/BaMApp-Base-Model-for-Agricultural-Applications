@@ -27,7 +27,6 @@ class Upload:
         return [os.path.abspath(image) for image in image_files]
 
 
-
     def extract_features(self, image):
         '''
         Extract the features from the image using the dino pretrained model.
@@ -53,26 +52,32 @@ class Upload:
 
     def upload(self, folder, commit_message):
         image_files = self.get_image_files(folder)
-        ds = deeplake.load(self.url) # Load the dataset it should already exist, but if not use the code below to create it first.
-        #ds = deeplake.empty(self.url, overwrite=True)
-        #with ds:
-        #    ds.create_tensor('images', htype='image', sample_compression='jpeg')
-        #    ds.create_tensor('embeddings', htype='embedding')
+        assert len(image_files) > 0, f'No images found in {folder}'
+        try:
+            ds = deeplake.load(self.url) # Load the dataset it should already exist, but if not use the code below to create it first.
+        except:
+            print('Creating dataset as it does not seem to exist yet.')
+            ds = deeplake.empty(self.url)
+            with ds:
+                ds.create_tensor('images', htype='image', sample_compression='jpeg')
+                ds.create_tensor('embeddings', htype='embedding')
 
         @deeplake.compute
         def images_2_deeplake(image_file, sample_out):
+            try:
+                image = Image.open(image_file).convert('RGB')
+                preprocess = T.Compose([
+                    T.Resize(1024),
+                    # T.CenterCrop(224),
+                ])
+                scaled_image = preprocess(image)
+                image_embedding = self.extract_features(image)
+                sample_out.append({'images': np.array(scaled_image), 'embeddings': image_embedding})
+            except Exception as e:
+                print(f'Failed to process {image_file}: {e}')
 
-            image = Image.open(image_file).convert('RGB')
-            preprocess = T.Compose([
-                T.Resize(518),
-                # T.CenterCrop(224),
-            ])
-            scaled_image = preprocess(image)
-            image_embedding = self.extract_features(image)
-
-            sample_out.append({'images': np.array(scaled_image), 'embeddings': image_embedding})
         num_workers = min(multiprocessing.cpu_count()-2, 1) # Use all but 2 cores, we still want to be able to control the computer
-        checkpoint_interval = min(200, len(image_files))
+        checkpoint_interval = min(200, len(image_files)) # create a checkpoint every 200 images
         images_2_deeplake().eval(image_files, ds, num_workers=num_workers, checkpoint_interval=checkpoint_interval)
         ds.commit(commit_message)
         print(f'Uploaded {len(image_files)} images to {self.url}')
