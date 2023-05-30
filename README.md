@@ -27,7 +27,12 @@ The [DinoV2](https://github.com/facebookresearch/dinov2) model, developed by Fac
 [DeepLake](https://github.com/activeloopai/deeplake) is an open-source project by ActiveLoop that provides a data lake for machine learning datasets. It allows users to store, share, and collaborate on large-scale datasets in an efficient and straightforward manner.
 
 ## Usage and Upload
+Clone the repo. 
+`pip install requirements.txt`
+
 Login to DeepLake see [here](https://docs.activeloop.ai/getting-started/deep-learning/using-activeloop-storage) for instructions.
+
+
 ```
 usage: upload.py [-h] [--folder FOLDER] [--commit_message COMMIT_MESSAGE]
 
@@ -38,7 +43,7 @@ options:
   --folder FOLDER       Folder with images
   --commit_message COMMIT_MESSAGE
                         Commit message
-``
+```
 
 ## Datasets
 
