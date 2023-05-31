@@ -1,3 +1,5 @@
+import sys
+
 import torch
 import torchvision.transforms as T
 import deeplake
@@ -6,14 +8,19 @@ import glob
 from PIL import Image
 import numpy as np
 import multiprocessing
-
+import sys
 
 
 class Upload:
     def __init__(self):
         self.url = 'hub://bamapp/test_large_small_embeddings'
-        self.model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14')
-        self.model_small = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
+        try:
+            self.model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14')
+            self.model_small = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
+        except Exception as e:
+            print(f'Error loading model: {e}')
+            sys.exit(1)
+
         #check if cuda is available
         if torch.cuda.is_available():
             self.model.to('cuda')
@@ -47,7 +54,9 @@ class Upload:
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225]), # Imagenet standards
         ])
+
         image = preprocess(image)[:3].unsqueeze(0)
+
         #Check if cuda is available
         if torch.cuda.is_available():
             image = image.to('cuda')
@@ -88,7 +97,7 @@ class Upload:
             except Exception as e:
                 print(f'Failed to process {image_file}: {e}')
 
-        num_workers = min(multiprocessing.cpu_count()-2, 1) # Use all but 2 cores, we still want to be able to control the computer
+        num_workers = min(multiprocessing.cpu_count()-2, 1) if multiprocessing.cpu_count() > 2 else 1 # Use all but 2 cores, we still want to be able to control the computer
         checkpoint_interval = min(200, len(image_files)) # create a checkpoint every 200 images
         images_2_deeplake().eval(image_files, ds, num_workers=num_workers, checkpoint_interval=checkpoint_interval)
         ds.commit(commit_message)
@@ -102,6 +111,10 @@ def main():
     parser.add_argument('--folder', type=str, help='Folder with images')
     parser.add_argument('--commit_message', type=str, help='Commit message')
     args = parser.parse_args()
+    assert args.folder is not None, 'Please specify a folder with images'
+    assert args.commit_message is not None, 'Please specify a commit message'
+    #check if args.folder exists
+    assert os.path.isdir(args.folder), f'Folder {args.folder} is not a directory'
     uploader = Upload()
     uploader.upload(args.folder, args.commit_message)
 
