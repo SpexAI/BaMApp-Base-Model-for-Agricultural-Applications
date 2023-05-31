@@ -14,8 +14,10 @@ class Upload:
         self.url = 'hub://bamapp/test_large_small_embeddings'
         self.model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14')
         self.model_small = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
-        self.model.to('cuda')
-        self.model_small.to('cuda')
+        #check if cuda is available
+        if torch.cuda.is_available():
+            self.model.to('cuda')
+            self.model_small.to('cuda')
 
 
     def get_image_files(self, directory):
@@ -46,7 +48,9 @@ class Upload:
             T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225]), # Imagenet standards
         ])
         image = preprocess(image)[:3].unsqueeze(0)
-        image = image.to('cuda')
+        #Check if cuda is available
+        if torch.cuda.is_available():
+            image = image.to('cuda')
 
         with torch.no_grad():
             features_dict = self.model.forward_features(image)
