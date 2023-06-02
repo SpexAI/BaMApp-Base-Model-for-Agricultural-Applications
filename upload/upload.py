@@ -11,7 +11,7 @@ import sys
 
 class Upload:
     def __init__(self):
-        self.url = 'hub://bamapp/test_large_small_embeddings'
+        self.url = 'hub://bamapp/test_large_small_embeddings_json_2'
         try:
             self.model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14')
             self.model_small = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
@@ -35,6 +35,47 @@ class Upload:
         for extension in ['jpg', 'jpeg', 'png']:
             image_files.extend(glob.glob(f'{directory}/**/*.{extension}', recursive=True))
         return [os.path.abspath(image) for image in image_files]
+
+    @staticmethod
+    def process_image(image):
+
+        # Define transformations
+        resize = T.Resize(1024, Image.BICUBIC)
+        center_crop = T.CenterCrop(1024)
+
+        # Find the longest edge of the image
+        longest_edge = max(image.size)
+
+        # Output list to hold the processed images
+        output = []
+
+        if longest_edge > 1024:
+            # Resize the image
+            resized_image = resize(image)
+            output.append(np.array(resized_image))
+
+            # Perform a center crop
+            cropped_image = center_crop(resized_image)
+            output.append(np.array(cropped_image))
+
+            # Tile the image into 1024x1024 tiles if possible
+            width, height = image.size
+            if width > 1024 and height > 1024:
+                for i in range(0, width - 1023, 1024):  # adjust the range to avoid going outside the image
+                    for j in range(0, height - 1023, 1024):  # adjust the range to avoid going outside the image
+                        box = (i, j, min(i + 1024, width),
+                               min(j + 1024, height))  # adjust the box to avoid going outside the image
+                        try:
+                            tile = image.crop(box)
+                            output.append(np.array(tile))
+                        except:
+                            pass
+        else:
+            # Just resize the image if it's smaller than 1024
+            resized_image = resize(image)
+            output.append(np.array(resized_image))
+
+        return output
 
     def extract_features(self, image):
         """
@@ -66,7 +107,7 @@ class Upload:
 
         return features_l.cpu().numpy(), features_s.cpu().numpy()
 
-    def upload(self, folder, commit_message):
+    def upload(self, folder, commit_message, metadata={}):
         """
         Upload images from a folder to deeplake
         :param folder: Folder with images, will be searched recursively, should contain jpg, jpeg or png files
@@ -81,27 +122,27 @@ class Upload:
             print(f'Creating dataset as it does not seem to exist yet. {e}')
             ds = deeplake.empty(self.url)
             with ds:
-                ds.create_tensor('images', htype='image', sample_compression='jpeg')
+                ds.create_tensor('images', htype='image', sample_compression='jpeg', create_sample_info_tensor=True)
                 ds.create_tensor('embeddings', htype='embedding')
                 ds.create_tensor('embeddings_large', htype='embedding')
+                ds.create_tensor('metadata', htype='json')
 
         @deeplake.compute
         def images_2_deeplake(image_file, sample_out):
             try:
                 image = Image.open(image_file).convert('RGB')
-                preprocess = T.Compose([
-                    T.Resize(1024),
-                    # T.CenterCrop(224),
-                ])
-                scaled_image = preprocess(image)
+
+                scaled_images = self.process_image(image)
                 image_embedding_large, image_embedding_small = self.extract_features(image)
-                sample_out.append({'images': np.array(scaled_image), 'embeddings': image_embedding_small,
-                                   'embeddings_large': image_embedding_large})
+                for scaled_image in scaled_images:
+                    sample_out.append({'images': np.array(scaled_image), 'embeddings': image_embedding_small,
+                                       'embeddings_large': image_embedding_large, 'metadata': metadata})
+
             except Exception as e:
                 print(f'Failed to process {image_file}: {e}')
 
         # Use all but 2 cores, we still want to be able to control the computer
-        num_workers = min(multiprocessing.cpu_count()-2, 1) if multiprocessing.cpu_count() > 2 else 1
+        num_workers =1# min(multiprocessing.cpu_count()-2, 1) if multiprocessing.cpu_count() > 2 else 1
         # create a checkpoint every 200 images
         checkpoint_interval = min(200, len(image_files))
         images_2_deeplake().eval(image_files, ds, num_workers=num_workers, checkpoint_interval=checkpoint_interval)
@@ -112,21 +153,29 @@ class Upload:
 
 def main():
     import argparse
+    import json
     parser = argparse.ArgumentParser(description='Upload images to deeplake')
     parser.add_argument('--folder', type=str, help='Folder with images')
     parser.add_argument('--commit_message', type=str, help='Commit message')
+    parser.add_argument('--json', type=str, help='Json file formated Metadata eg. {"Origin": "Test"}')
     args = parser.parse_args()
     assert args.folder is not None, 'Please specify a folder with images'
     assert args.commit_message is not None, 'Please specify a commit message'
+    metadata = {}
+    if args.json is not None:
+        try:
+            metadata = json.loads(args.json)
+        except json.JSONDecodeError as e:
+            print(f'Invalid JSON string: {e}')
     # check if args.folder exists
     assert os.path.isdir(args.folder), f'Folder {args.folder} is not a directory'
     uploader = Upload()
-    uploader.upload(args.folder, args.commit_message)
+    uploader.upload(args.folder, args.commit_message, metadata=metadata)
 
 
 def test():
     uploader = Upload()
-    uploader.upload('/media/ben/DataTwo/Tmp_Foundation_Test', 'test')
+    uploader.upload('/media/ben/DataTwo/Tmp_Foundation_Test', 'test', metadata={'Origin': 'Test'})
 
 
 if __name__ == '__main__':
