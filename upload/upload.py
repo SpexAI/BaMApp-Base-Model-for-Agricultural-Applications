@@ -87,7 +87,7 @@ class Upload:
 
         # Preprocess image for the model
         preprocess = T.Compose([
-            T.Resize(size=(518,518)),
+            T.Resize(size=(224,224)), #518
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225]), # Imagenet standards
         ])
@@ -145,7 +145,7 @@ class Upload:
         num_workers = min(multiprocessing.cpu_count()-2, 1) if multiprocessing.cpu_count() > 2 else 1
         num_workers = min(num_workers, len(image_files))
         # create a checkpoint every 200 images
-        checkpoint_interval = min(200, len(image_files))
+        checkpoint_interval = min(1000, len(image_files))
         images_2_deeplake().eval(image_files, ds, num_workers=num_workers, checkpoint_interval=checkpoint_interval)
         ds.commit(commit_message)
         print(f'Uploaded {len(image_files)} images to {self.url}')
