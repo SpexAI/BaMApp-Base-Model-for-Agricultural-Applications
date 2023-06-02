@@ -142,7 +142,8 @@ class Upload:
                 print(f'Failed to process {image_file}: {e}')
 
         # Use all but 2 cores, we still want to be able to control the computer
-        num_workers =1# min(multiprocessing.cpu_count()-2, 1) if multiprocessing.cpu_count() > 2 else 1
+        num_workers = min(multiprocessing.cpu_count()-2, 1) if multiprocessing.cpu_count() > 2 else 1
+        num_workers = min(num_workers, len(image_files))
         # create a checkpoint every 200 images
         checkpoint_interval = min(200, len(image_files))
         images_2_deeplake().eval(image_files, ds, num_workers=num_workers, checkpoint_interval=checkpoint_interval)
@@ -167,6 +168,7 @@ def main():
             metadata = json.loads(args.json)
         except json.JSONDecodeError as e:
             print(f'Invalid JSON string: {e}')
+            sys.exit(1)
     # check if args.folder exists
     assert os.path.isdir(args.folder), f'Folder {args.folder} is not a directory'
     uploader = Upload()
