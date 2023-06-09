@@ -7,13 +7,12 @@ from PIL import Image
 import numpy as np
 import multiprocessing
 import sys
-
+import math
 
 class Upload:
     def __init__(self):
-        self.url = 'hub://bamapp/test_large_small_embeddings_json_2'
+        self.url = 'hub://bamapp/test_large_small_embeddings_json_3'
         try:
-            self.model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14')
             self.model_small = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         except Exception as e:
             print(f'Error loading model: {e}')
@@ -21,7 +20,6 @@ class Upload:
 
         # check if cuda is available
         if torch.cuda.is_available():
-            self.model.to('cuda')
             self.model_small.to('cuda')
 
     @staticmethod
@@ -99,13 +97,11 @@ class Upload:
             image = image.to('cuda')
 
         with torch.no_grad():
-            features_dict = self.model.forward_features(image)
-            features_l = features_dict['x_norm_patchtokens']
 
             features_dict = self.model_small.forward_features(image)
             features_s = features_dict['x_norm_patchtokens']
-
-        return features_l.cpu().numpy(), features_s.cpu().numpy()
+            features_s = np.squeeze(features_s.cpu().numpy())
+        return features_s.flatten()
 
     def upload(self, folder, commit_message, metadata={}):
         """
@@ -124,7 +120,6 @@ class Upload:
             with ds:
                 ds.create_tensor('images', htype='image', sample_compression='jpeg', create_sample_info_tensor=True)
                 ds.create_tensor('embeddings', htype='embedding')
-                ds.create_tensor('embeddings_large', htype='embedding')
                 ds.create_tensor('metadata', htype='json')
 
         @deeplake.compute
@@ -133,10 +128,10 @@ class Upload:
                 image = Image.open(image_file).convert('RGB')
 
                 scaled_images = self.process_image(image)
-                image_embedding_large, image_embedding_small = self.extract_features(image)
+                image_embedding_small = self.extract_features(image)
                 for scaled_image in scaled_images:
                     sample_out.append({'images': np.array(scaled_image), 'embeddings': image_embedding_small,
-                                       'embeddings_large': image_embedding_large, 'metadata': metadata})
+                                       'metadata': metadata})
 
             except Exception as e:
                 print(f'Failed to process {image_file}: {e}')
