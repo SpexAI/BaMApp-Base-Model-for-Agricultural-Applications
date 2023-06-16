@@ -27,14 +27,14 @@ The [DinoV2](https://github.com/facebookresearch/dinov2) model, developed by Fac
 [DeepLake](https://github.com/activeloopai/deeplake) is an open-source project by ActiveLoop that provides a data lake for machine learning datasets. It allows users to store, share, and collaborate on large-scale datasets in an efficient and straightforward manner.
 
 ## Usage and Upload
-Clone the repo. 
+1. Clone the repo.
+2. Create a virtual environment and install the requirements
 `pip install requirements.txt`
-
-Login to DeepLake see [here](https://docs.activeloop.ai/getting-started/deep-learning/using-activeloop-storage) for instructions.
-
+3. Login to DeepLake see [here](https://docs.activeloop.ai/getting-started/deep-learning/using-activeloop-storage) for instructions.
+4. Upload the images to DeepLake using the upload.py script. The script takes in the following arguments:
 
 ```
-usage: upload.py [-h] [--folder FOLDER] [--commit_message COMMIT_MESSAGE]
+usage: upload.py [-h] [--folder FOLDER] [--commit_message COMMIT_MESSAGE] [--json JSON]
 
 Upload images to deeplake
 
@@ -43,7 +43,15 @@ options:
   --folder FOLDER       Folder with images
   --commit_message COMMIT_MESSAGE
                         Commit message
+  --json JSON           Json file formated Metadata eg. {"Origin": "Test"}
+
 ```
+
+An example call would be:
+```
+python upload.py --folder ./images --commit_message "Test" --json '{"Origin": "Test", "Description": "Test"}'
+```
+5. Report the commit ID to the BaMApp team, to keep track of the data.
 
 ## Datasets
 

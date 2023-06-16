@@ -70,3 +70,4 @@ urllib3==1.26.16
 wandb==0.15.3
 wrapt==1.15.0
 yarl==1.9.2
+xformers

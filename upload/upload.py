@@ -7,11 +7,11 @@ from PIL import Image
 import numpy as np
 import multiprocessing
 import sys
-import math
+import datetime
 
 class Upload:
     def __init__(self):
-        self.url = 'hub://bamapp/test_large_small_embeddings_json_3'
+        self.url = 'hub://bamapp/bamapp_test'
         try:
             self.model_small = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         except Exception as e:
@@ -142,9 +142,26 @@ class Upload:
         # create a checkpoint every 200 images
         checkpoint_interval = min(1000, len(image_files))
         images_2_deeplake().eval(image_files, ds, num_workers=num_workers, checkpoint_interval=checkpoint_interval)
-        ds.commit(commit_message)
+        commit_response = ds.commit(commit_message)
+
+        print(f'Commit message: {commit_response}, please keep this message for future reference')
         print(f'Uploaded {len(image_files)} images to {self.url}')
         print(f'Logs: {ds.log()}')
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        filename = f'BaMApp_upload_log_{timestamp}.txt'
+        try:
+            # Open the log file and write commit message to it as well as the log
+            with open(filename, 'w') as f:
+                f.write(f'Commit message: {commit_message}\n')
+                f.write(f'Metadata: {metadata}\n')
+                f.write(f'Commit Id: {commit_response}\n')
+                original_stdout = sys.stdout
+                sys.stdout = f
+                ds.log()
+                sys.stdout = original_stdout
+            print(f'Log file written to {filename}')
+        except Exception as e:
+            print(f'Failed to write log file: {e}')
 
 
 def main():
@@ -168,11 +185,6 @@ def main():
     assert os.path.isdir(args.folder), f'Folder {args.folder} is not a directory'
     uploader = Upload()
     uploader.upload(args.folder, args.commit_message, metadata=metadata)
-
-
-def test():
-    uploader = Upload()
-    uploader.upload('/media/ben/DataTwo/Tmp_Foundation_Test', 'test', metadata={'Origin': 'Test'})
 
 
 if __name__ == '__main__':
