@@ -181,7 +181,19 @@ def main():
             assert 'source_dataset_name' in args.json, 'Please specify a source_dataset_name in the json file'
             metadata = json.loads(args.json)
         except json.JSONDecodeError as e:
-            print(f'Invalid JSON string: {e}')
+            json_string = args.json
+            error_message = e.msg
+            error_pos = e.pos
+            error_line = e.lineno
+            error_col = e.colno
+            error_char = json_string[error_pos]
+
+            error_context = json_string[max(0, error_pos - 3):error_pos + 4]
+
+            print(f"JSON decoding error: {error_message}")
+            print(f"Error occurred at line {error_line}, column {error_col}")
+            print(f"Character '{error_char}' caused the error")
+            print(f"Context: {error_context}")
             sys.exit(1)
     # check if args.folder exists
     assert os.path.isdir(args.folder), f'Folder {args.folder} is not a directory'
