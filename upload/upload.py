@@ -11,7 +11,7 @@ import datetime
 
 class Upload:
     def __init__(self):
-        self.url = 'hub://bamapp/bamapp_test'
+        self.url = 'hub://bamapp/bamapp'
         try:
             self.model_small = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         except Exception as e:
