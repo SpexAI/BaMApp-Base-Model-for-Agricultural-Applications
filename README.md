@@ -49,8 +49,9 @@ options:
 
 An example call would be:
 ```
-python upload.py --folder ./images --commit_message "Test" --json '{"Origin": "Test", "Description": "Test"}'
+python upload.py --folder ./images --commit_message "Test" --json '{"source_dataset_name": "Test", "Description": "Test", "ref_url": "test"}'
 ```
+The field 'source_dataset_name' is required and should be the name of the dataset you are uploading. The field 'Description' is optional and can be used to provide additional information about the dataset.
 5. Report the commit ID to the BaMApp team, to keep track of the data.
 
 ## Datasets

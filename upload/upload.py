@@ -175,8 +175,10 @@ def main():
     assert args.folder is not None, 'Please specify a folder with images'
     assert args.commit_message is not None, 'Please specify a commit message'
     metadata = {}
+    assert args.json is not None, 'Please specify a json file with metadata and source_dataset_name'
     if args.json is not None:
         try:
+            assert 'source_dataset_name' in args.json, 'Please specify a source_dataset_name in the json file'
             metadata = json.loads(args.json)
         except json.JSONDecodeError as e:
             print(f'Invalid JSON string: {e}')
