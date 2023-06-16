@@ -27,8 +27,32 @@ The [DinoV2](https://github.com/facebookresearch/dinov2) model, developed by Fac
 [DeepLake](https://github.com/activeloopai/deeplake) is an open-source project by ActiveLoop that provides a data lake for machine learning datasets. It allows users to store, share, and collaborate on large-scale datasets in an efficient and straightforward manner.
 
 ## Usage and Upload
+1. Clone the repo.
+2. Create a virtual environment and install the requirements
+`pip install requirements.txt`
+3. Login to DeepLake see [here](https://docs.activeloop.ai/getting-started/deep-learning/using-activeloop-storage) for instructions.
+4. Upload the images to DeepLake using the upload.py script. The script takes in the following arguments:
 
-This section will contain instructions on how to use and upload data to the BaMApp Base Model for Agricultural Applications repository. Please see `upload.py` for an example of how to upload data.
+```
+usage: upload.py [-h] [--folder FOLDER] [--commit_message COMMIT_MESSAGE] [--json JSON]
+
+Upload images to deeplake
+
+options:
+  -h, --help            show this help message and exit
+  --folder FOLDER       Folder with images
+  --commit_message COMMIT_MESSAGE
+                        Commit message
+  --json JSON           Json file formated Metadata eg. {"Origin": "Test"}
+
+```
+
+An example call would be:
+```
+python upload.py --folder ./images --commit_message "Test" --json '{"source_dataset_name": "Test", "Description": "Test", "ref_url": "test"}'
+```
+The field 'source_dataset_name' is required and should be the name of the dataset you are uploading. The field 'Description' is optional and can be used to provide additional information about the dataset.
+5. Report the commit ID to the BaMApp team, to keep track of the data.
 
 ## Datasets
 
