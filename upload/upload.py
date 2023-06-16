@@ -30,7 +30,7 @@ class Upload:
         :return: list of image files
         """
         image_files = []
-        for extension in ['jpg', 'jpeg', 'png']:
+        for extension in ['jpg', 'jpeg', 'png', 'JPEG', 'JPG', 'PNG']:
             image_files.extend(glob.glob(f'{directory}/**/*.{extension}', recursive=True))
         return [os.path.abspath(image) for image in image_files]
 
@@ -111,6 +111,7 @@ class Upload:
         """
         image_files = self.get_image_files(folder)
         assert len(image_files) > 0, f'No images found in {folder}'
+        print(f'Found {len(image_files)} images in {folder}')
         try:
             # Load the dataset it should already exist, but if not use the code below to create it first.
             ds = deeplake.load(self.url)
@@ -140,7 +141,8 @@ class Upload:
         num_workers = min(multiprocessing.cpu_count()-2, 1) if multiprocessing.cpu_count() > 2 else 1
         num_workers = min(num_workers, len(image_files))
         # create a checkpoint every 200 images
-        checkpoint_interval = min(1000, len(image_files))
+        checkpoint_interval = min(len(image_files)/(20), len(image_files))
+        checkpoint_interval = round(checkpoint_interval/num_workers)*num_workers
         images_2_deeplake().eval(image_files, ds, num_workers=num_workers, checkpoint_interval=checkpoint_interval)
         commit_response = ds.commit(commit_message)
 
