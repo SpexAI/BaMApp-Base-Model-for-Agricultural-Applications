@@ -132,12 +132,8 @@ class Upload:
             # Load the dataset it should already exist, but if not use the code below to create it first.
             ds = deeplake.load(self.url)
         except Exception as e:
-            print(f'Creating dataset as it does not seem to exist yet. {e}')
-            ds = deeplake.empty(self.url)
-            with ds:
-                ds.create_tensor('images', htype='image', sample_compression='jpeg', create_sample_info_tensor=True)
-                ds.create_tensor('embeddings', htype='embedding')
-                ds.create_tensor('metadata', htype='json')
+            print(f'Error loading dataset: {e}')
+            sys.exit(1)
 
         @deeplake.compute
         def images_2_deeplake(image_file, sample_out, zip_directory=zip_directory):
