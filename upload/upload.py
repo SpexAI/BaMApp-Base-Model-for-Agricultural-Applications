@@ -8,6 +8,7 @@ import numpy as np
 import multiprocessing
 import sys
 import datetime
+import zipfile
 
 class Upload:
     def __init__(self):
@@ -30,9 +31,19 @@ class Upload:
         :return: list of image files
         """
         image_files = []
-        for extension in ['jpg', 'jpeg', 'png']:
+        for extension in ['jpg', 'jpeg', 'png', 'JPEG', 'JPG', 'PNG']:
             image_files.extend(glob.glob(f'{directory}/**/*.{extension}', recursive=True))
         return [os.path.abspath(image) for image in image_files]
+
+    @staticmethod
+    def get_image_files_zip(zip_directory) -> list[str]:
+        file_list = []
+        with zipfile.ZipFile(zip_directory, 'r') as zip_ref:
+            for file in zip_ref.namelist():
+                if file.endswith('.jpg') or file.endswith('.png') or file.endswith('.jpeg')\
+                        or file.endswith('.JPG') or file.endswith('.JPEG') or file.endswith('.PNG'):
+                    file_list.append(file)
+        return file_list
 
     @staticmethod
     def process_image(image):
@@ -109,38 +120,55 @@ class Upload:
         :param folder: Folder with images, will be searched recursively, should contain jpg, jpeg or png files
         :param commit_message: Commit message to use for the upload
         """
-        image_files = self.get_image_files(folder)
+        if 'zip' in folder:
+            image_files = self.get_image_files_zip(folder)
+            zip_directory = folder
+        else:
+            image_files = self.get_image_files(folder)
+            zip_directory = None
         assert len(image_files) > 0, f'No images found in {folder}'
+        print(f'Found {len(image_files)} images in {folder}')
         try:
             # Load the dataset it should already exist, but if not use the code below to create it first.
             ds = deeplake.load(self.url)
         except Exception as e:
-            print(f'Creating dataset as it does not seem to exist yet. {e}')
-            ds = deeplake.empty(self.url)
-            with ds:
-                ds.create_tensor('images', htype='image', sample_compression='jpeg', create_sample_info_tensor=True)
-                ds.create_tensor('embeddings', htype='embedding')
-                ds.create_tensor('metadata', htype='json')
+            print(f'Error loading dataset: {e}')
+            sys.exit(1)
 
         @deeplake.compute
-        def images_2_deeplake(image_file, sample_out):
-            try:
-                image = Image.open(image_file).convert('RGB')
+        def images_2_deeplake(image_file, sample_out, zip_directory=zip_directory):
+            if zip_directory is None:
+                try:
+                    image = Image.open(image_file).convert('RGB')
 
-                scaled_images = self.process_image(image)
-                image_embedding_small = self.extract_features(image)
-                for scaled_image in scaled_images:
-                    sample_out.append({'images': np.array(scaled_image), 'embeddings': image_embedding_small,
-                                       'metadata': metadata})
+                    scaled_images = self.process_image(image)
+                    image_embedding_small = self.extract_features(image)
+                    for scaled_image in scaled_images:
+                        sample_out.append({'images': np.array(scaled_image), 'embeddings': image_embedding_small,
+                                           'metadata': metadata})
 
-            except Exception as e:
-                print(f'Failed to process {image_file}: {e}')
+                except Exception as e:
+                    print(f'Failed to process {image_file}: {e}')
+            else:
+                with zipfile.ZipFile(zip_directory, 'r') as zip_ref:
+                    with zip_ref.open(image_file) as f:
+                        try:
+                            image = Image.open(f).convert('RGB')
+
+                            scaled_images = self.process_image(image)
+                            image_embedding_small = self.extract_features(image)
+                            for scaled_image in scaled_images:
+                                sample_out.append({'images': np.array(scaled_image), 'embeddings': image_embedding_small,
+                                                   'metadata': metadata})
+                        except Exception as e:
+                            print(f'Failed to process {image_file}: {e}')
 
         # Use all but 2 cores, we still want to be able to control the computer
         num_workers = min(multiprocessing.cpu_count()-2, 1) if multiprocessing.cpu_count() > 2 else 1
         num_workers = min(num_workers, len(image_files))
         # create a checkpoint every 200 images
-        checkpoint_interval = min(1000, len(image_files))
+        checkpoint_interval = min(len(image_files)/(7), len(image_files))
+        checkpoint_interval = round(checkpoint_interval/num_workers)*num_workers
         images_2_deeplake().eval(image_files, ds, num_workers=num_workers, checkpoint_interval=checkpoint_interval)
         commit_response = ds.commit(commit_message)
 
@@ -163,7 +191,12 @@ class Upload:
         except Exception as e:
             print(f'Failed to write log file: {e}')
 
-
+def is_valid_zip_file(path):
+    try:
+        with zipfile.ZipFile(path) as zf:
+            return zf.testzip() is None
+    except zipfile.BadZipFile:
+        return False
 def main():
     import argparse
     import json
@@ -181,10 +214,22 @@ def main():
             assert 'source_dataset_name' in args.json, 'Please specify a source_dataset_name in the json file'
             metadata = json.loads(args.json)
         except json.JSONDecodeError as e:
-            print(f'Invalid JSON string: {e}')
+            json_string = args.json
+            error_message = e.msg
+            error_pos = e.pos
+            error_line = e.lineno
+            error_col = e.colno
+            error_char = json_string[error_pos]
+
+            error_context = json_string[max(0, error_pos - 3):error_pos + 4]
+
+            print(f"JSON decoding error: {error_message}")
+            print(f"Error occurred at line {error_line}, column {error_col}")
+            print(f"Character '{error_char}' caused the error")
+            print(f"Context: {error_context}")
             sys.exit(1)
     # check if args.folder exists
-    assert os.path.isdir(args.folder), f'Folder {args.folder} is not a directory'
+    assert os.path.isdir(args.folder) or is_valid_zip_file(args.folder), f'Folder {args.folder} is not a directory or a valid zip file'
     uploader = Upload()
     uploader.upload(args.folder, args.commit_message, metadata=metadata)
 
