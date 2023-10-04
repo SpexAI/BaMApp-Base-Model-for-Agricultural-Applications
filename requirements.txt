@@ -46,7 +46,7 @@ nvidia-nccl-cu11==2.14.3
 nvidia-nvtx-cu11==11.7.91
 pathos==0.3.0
 pathtools==0.1.2
-Pillow==9.5.0
+Pillow==10.0.1
 pox==0.3.2
 ppft==1.7.6.6
 protobuf==4.23.2
